@@ -21,7 +21,8 @@
   "dependencies": {
     "hono": "^4.6.13",
     "named-logs": "^0.3.2",
-    "remote-sql": "^0.0.6"
+    "remote-sql": "^0.0.6",
+    "viem": "^2.47.0"
   },
   "devDependencies": {
     "as-soon": "^0.0.11",
