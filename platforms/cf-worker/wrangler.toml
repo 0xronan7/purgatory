@@ -8,11 +8,14 @@ compatibility_flags = [ "nodejs_compat" ] # for node:async_hooks
 enabled = true
 head_sampling_rate = 1 # optional. default = 1.
 
-[env.production]
+# D1 database for local development
+[[d1_databases]]
+binding = "DB"
+database_name = "template-agnostic-db"
+database_id = "local"
 
-d1_databases = [
-  { binding = "DB", database_name = "template-agnostic-db", database_id = "" }
-]
+[env.production]
+# Production database_id should be set via wrangler CLI or Cloudflare dashboard
 
 [triggers]
 crons = ["* * * * *", "*/1 * * * *", "*/2 * * * *"]

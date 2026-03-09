@@ -30,7 +30,7 @@
     "prepare": "set-defaults .",
     "deploy:production": "wrangler -e production deploy --minify",
     "dev": "pnpm init-db && wrangler dev -e production --port 8545",
-    "init-db": "ldenv wrangler -e production d1 execute template-agnostic-db --file=node_modules/template-agnostic-server-app/src/schema/sql/db.sql ~~",
+    "init-db": "wrangler d1 execute template-agnostic-db --local --file=node_modules/template-agnostic-server-app/src/schema/sql/db.sql",
     "test": "vitest",
     "format:check": "prettier --check .",
     "format": "prettier --write ."
