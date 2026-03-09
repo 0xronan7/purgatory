@@ -8,11 +8,11 @@ compatibility_flags = [ "nodejs_compat" ] # for node:async_hooks
 enabled = true
 head_sampling_rate = 1 # optional. default = 1.
 
-# D1 database for local development
+# D1 database binding
 [[d1_databases]]
 binding = "DB"
 database_name = "template-agnostic-db"
-database_id = "local"
+database_id = "00000000-0000-0000-0000-000000000000"
 
 [env.production]
 # Production database_id should be set via wrangler CLI or Cloudflare dashboard
