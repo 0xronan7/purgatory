@@ -22,9 +22,15 @@ export function layout({title, children}: LayoutProps) {
 			</head>
 			<body>
 				<header>
-					<h1><span>🔧</span> Debug Mempool</h1>
+					<h1><span>⛧</span> Purgatory</h1>
 				</header>
 				${raw(children)}
+				<!-- Atmospheric effects -->
+				<div class="chain-line" style="transform:translateX(-50%) rotate(-12deg);"></div>
+				<div class="chain-line" style="transform:translateX(-50%) rotate(12deg); opacity:0.4;"></div>
+				<div class="chain-line" style="transform:translateX(-50%) rotate(0deg);"></div>
+				<div class="vignette"></div>
+				<div class="scanlines"></div>
 			</body>
 		</html>
 	`;
