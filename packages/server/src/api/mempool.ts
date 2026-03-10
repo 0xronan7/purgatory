@@ -44,6 +44,8 @@ export function getMempoolAPI<CustomEnv extends Env>(options: ServerOptions<Cust
 			const state: MempoolStateInfo = {
 				minGasPrice: `0x${(await storage.getMinGasPrice()).toString(16)}`,
 				autoForward: await storage.isAutoForward(),
+				replacementEnabled: await storage.isReplacementEnabled(),
+				minReplacementBump: await storage.getMinReplacementBump(),
 			};
 
 			return c.json<ApiResponse<MempoolStateInfo>>({
@@ -99,6 +101,52 @@ export function getMempoolAPI<CustomEnv extends Env>(options: ServerOptions<Cust
 			return c.json<ApiResponse>({
 				success: true,
 				data: {autoForward: body.enabled},
+			});
+		})
+
+		// POST /api/mempool/replacement-mode - Set replacement mode
+		.post('/replacement-mode', async (c) => {
+			const body = await c.req.json<{enabled: boolean}>();
+			const config = c.get('config');
+
+			if (typeof body.enabled !== 'boolean') {
+				return c.json<ApiResponse>(
+					{
+						success: false,
+						error: 'enabled must be a boolean',
+					},
+					400
+				);
+			}
+
+			await config.storage.setReplacementEnabled(body.enabled);
+
+			return c.json<ApiResponse>({
+				success: true,
+				data: {replacementEnabled: body.enabled},
+			});
+		})
+
+		// POST /api/mempool/replacement-bump - Set minimum replacement bump percentage
+		.post('/replacement-bump', async (c) => {
+			const body = await c.req.json<{percent: number}>();
+			const config = c.get('config');
+
+			if (typeof body.percent !== 'number' || body.percent < 0 || body.percent > 1000) {
+				return c.json<ApiResponse>(
+					{
+						success: false,
+						error: 'percent must be a number between 0 and 1000',
+					},
+					400
+				);
+			}
+
+			await config.storage.setMinReplacementBump(body.percent);
+
+			return c.json<ApiResponse>({
+				success: true,
+				data: {minReplacementBump: body.percent},
 			});
 		})
 

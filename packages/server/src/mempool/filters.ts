@@ -11,6 +11,8 @@ export interface FilterResult {
 export interface FilterContext {
 	storage: MempoolStorage;
 	minGasPrice: bigint;
+	replacementEnabled: boolean;
+	minReplacementBump: number;
 }
 
 // Main filter function that applies all rules
@@ -28,33 +30,37 @@ export async function applyFilters(
 		};
 	}
 
-	// Check for nonce conflicts (replacement transactions)
-	const existingTxs = await context.storage.getTransactionsBySender(tx.from);
-	const conflicting = existingTxs.find((existing) => existing.nonce === tx.nonce);
+	// Only check replacement if enabled
+	if (context.replacementEnabled) {
+		const existingTxs = await context.storage.getTransactionsBySender(tx.from);
+		const conflicting = existingTxs.find((existing) => existing.nonce === tx.nonce);
 
-	if (conflicting) {
-		// Check if new transaction has higher gas price (replacement)
-		const existingPrice = conflicting.maxFeePerGas ?? conflicting.gasPrice ?? 0n;
-		const newPrice = getEffectiveGasPrice(tx);
+		if (conflicting) {
+			// Check if new transaction has higher gas price (replacement)
+			const existingPrice = conflicting.maxFeePerGas ?? conflicting.gasPrice ?? 0n;
+			const newPrice = getEffectiveGasPrice(tx);
 
-		// Typically need 10% higher gas price to replace
-		const minReplacementPrice = (existingPrice * 110n) / 100n;
+			// Use configurable bump percentage
+			const bumpMultiplier = BigInt(100 + context.minReplacementBump);
+			const minReplacementPrice = (existingPrice * bumpMultiplier) / 100n;
 
-		if (newPrice < minReplacementPrice) {
-			return {
-				accepted: false,
-				action: 'reject',
-				reason: `Replacement transaction gas price too low. Need at least ${minReplacementPrice}, got ${newPrice}`,
-			};
+			if (newPrice < minReplacementPrice) {
+				return {
+					accepted: false,
+					action: 'reject',
+					reason: `Replacement requires ${context.minReplacementBump}% gas bump. Need ${minReplacementPrice}, got ${newPrice}`,
+				};
+			}
+
+			// Mark the existing transaction as replaced
+			await context.storage.updateStatus(
+				conflicting.hash as Hash,
+				'replaced',
+				`Replaced by ${tx.hash}`
+			);
 		}
-
-		// Mark the existing transaction as replaced
-		await context.storage.updateStatus(
-			conflicting.hash as Hash,
-			'replaced',
-			`Replaced by ${tx.hash}`
-		);
 	}
+	// If replacement disabled, just accept - multiple TXs with same nonce allowed
 
 	return {
 		accepted: true,

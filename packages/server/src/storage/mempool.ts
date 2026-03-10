@@ -238,4 +238,46 @@ export class MempoolStorage {
 	async setAutoForward(enabled: boolean): Promise<void> {
 		await this.setState('auto_forward', enabled.toString());
 	}
+
+	// Replacement mode methods
+	async isReplacementEnabled(): Promise<boolean> {
+		const value = await this.getState('replacement_enabled');
+		return value === 'true'; // Default false
+	}
+
+	async setReplacementEnabled(enabled: boolean): Promise<void> {
+		await this.setState('replacement_enabled', enabled.toString());
+	}
+
+	async getMinReplacementBump(): Promise<number> {
+		const value = await this.getState('min_replacement_bump');
+		return parseInt(value ?? '10', 10);
+	}
+
+	async setMinReplacementBump(percent: number): Promise<void> {
+		await this.setState('min_replacement_bump', percent.toString());
+	}
+
+	// Get transactions with nonce conflicts for UI highlighting
+	async getNonceConflicts(): Promise<Map<string, string[]>> {
+		const stmt = this.db.prepare(`
+			SELECT from_address, nonce, GROUP_CONCAT(hash) as hashes
+			FROM PendingTransactions 
+			WHERE status = 'pending'
+			GROUP BY from_address, nonce
+			HAVING COUNT(*) > 1
+		`);
+		const result = await stmt.bind().all<{
+			from_address: string;
+			nonce: number;
+			hashes: string;
+		}>();
+
+		const conflicts = new Map<string, string[]>();
+		for (const row of result.results) {
+			const key = `${row.from_address}:${row.nonce}`;
+			conflicts.set(key, row.hashes.split(','));
+		}
+		return conflicts;
+	}
 }

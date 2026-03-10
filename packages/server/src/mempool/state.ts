@@ -20,6 +20,8 @@ const logger = logs('state');
 export interface MempoolState {
 	minGasPrice: bigint;
 	autoForward: boolean;
+	replacementEnabled: boolean;
+	minReplacementBump: number;
 }
 
 export class MempoolManager {
@@ -33,6 +35,8 @@ export class MempoolManager {
 		return {
 			minGasPrice: await this.storage.getMinGasPrice(),
 			autoForward: await this.storage.isAutoForward(),
+			replacementEnabled: await this.storage.isReplacementEnabled(),
+			minReplacementBump: await this.storage.getMinReplacementBump(),
 		};
 	}
 
@@ -67,6 +71,8 @@ export class MempoolManager {
 		const filterResult = await applyFilters(decoded, {
 			storage: this.storage,
 			minGasPrice: state.minGasPrice,
+			replacementEnabled: state.replacementEnabled,
+			minReplacementBump: state.minReplacementBump,
 		});
 
 		if (!filterResult.accepted) {

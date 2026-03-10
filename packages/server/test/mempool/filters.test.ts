@@ -36,6 +36,8 @@ describe('Transaction Filters', () => {
 			const context: FilterContext = {
 				storage,
 				minGasPrice: parseGwei('5'),
+				replacementEnabled: false,
+				minReplacementBump: 10,
 			};
 
 			const result = await applyFilters(decoded, context);
@@ -58,6 +60,8 @@ describe('Transaction Filters', () => {
 			const context: FilterContext = {
 				storage,
 				minGasPrice: parseGwei('10'),
+				replacementEnabled: false,
+				minReplacementBump: 10,
 			};
 
 			const result = await applyFilters(decoded, context);
@@ -82,6 +86,8 @@ describe('Transaction Filters', () => {
 			const context: FilterContext = {
 				storage,
 				minGasPrice: parseGwei('10'),
+				replacementEnabled: false,
+				minReplacementBump: 10,
 			};
 
 			const result = await applyFilters(decoded, context);
@@ -89,7 +95,7 @@ describe('Transaction Filters', () => {
 			expect(result.accepted).toBe(true);
 		});
 
-		it('accepts replacement transaction with 10% higher gas', async () => {
+		it('accepts replacement transaction with 10% higher gas (when replacement enabled)', async () => {
 			// First, add an existing transaction
 			const existingRawTx = await createSignedTransaction({
 				to: TEST_RECIPIENT as Address,
@@ -130,6 +136,8 @@ describe('Transaction Filters', () => {
 			const context: FilterContext = {
 				storage,
 				minGasPrice: 0n,
+				replacementEnabled: true,
+				minReplacementBump: 10,
 			};
 
 			const result = await applyFilters(replacementDecoded, context);
@@ -142,7 +150,7 @@ describe('Transaction Filters', () => {
 			expect(oldTx?.status).toBe('replaced');
 		});
 
-		it('rejects replacement transaction with insufficient gas bump', async () => {
+		it('rejects replacement transaction with insufficient gas bump (when replacement enabled)', async () => {
 			// First, add an existing transaction
 			const existingRawTx = await createSignedTransaction({
 				to: TEST_RECIPIENT as Address,
@@ -183,13 +191,15 @@ describe('Transaction Filters', () => {
 			const context: FilterContext = {
 				storage,
 				minGasPrice: 0n,
+				replacementEnabled: true,
+				minReplacementBump: 10,
 			};
 
 			const result = await applyFilters(replacementDecoded, context);
 
 			expect(result.accepted).toBe(false);
 			expect(result.action).toBe('reject');
-			expect(result.reason).toContain('Replacement transaction gas price too low');
+			expect(result.reason).toContain('Replacement requires 10% gas bump');
 		});
 
 		it('accepts transaction when no min gas price is set', async () => {
@@ -206,11 +216,132 @@ describe('Transaction Filters', () => {
 			const context: FilterContext = {
 				storage,
 				minGasPrice: 0n,
+				replacementEnabled: false,
+				minReplacementBump: 10,
 			};
 
 			const result = await applyFilters(decoded, context);
 
 			expect(result.accepted).toBe(true);
+		});
+
+		it('accepts multiple transactions with same nonce when replacement disabled (debug mode)', async () => {
+			// First, add an existing transaction
+			const existingRawTx = await createSignedTransaction({
+				to: TEST_RECIPIENT as Address,
+				value: parseEther('1'),
+				nonce: 0,
+				gasPrice: parseGwei('10'),
+				chainId,
+			});
+
+			const existingDecoded = await decodeRawTransaction(existingRawTx);
+
+			// Store the existing transaction
+			await storage.addTransaction({
+				hash: existingDecoded.hash,
+				rawTx: existingRawTx,
+				from: existingDecoded.from,
+				to: existingDecoded.to,
+				nonce: existingDecoded.nonce,
+				gasPrice: existingDecoded.gasPrice,
+				gasLimit: existingDecoded.gasLimit,
+				value: existingDecoded.value,
+				data: existingDecoded.data,
+				chainId: existingDecoded.chainId,
+				txType: existingDecoded.txType,
+			});
+
+			// Create another transaction with same nonce but lower gas (would be rejected in node-like mode)
+			const newRawTx = await createSignedTransaction({
+				to: TEST_RECIPIENT as Address,
+				value: parseEther('2'),
+				nonce: 0,
+				gasPrice: parseGwei('5'), // Lower gas - would normally be rejected
+				chainId,
+			});
+
+			const newDecoded = await decodeRawTransaction(newRawTx);
+
+			// Debug mode - replacement disabled
+			const context: FilterContext = {
+				storage,
+				minGasPrice: 0n,
+				replacementEnabled: false,
+				minReplacementBump: 10,
+			};
+
+			const result = await applyFilters(newDecoded, context);
+
+			// Should be accepted in debug mode - no replacement check
+			expect(result.accepted).toBe(true);
+			expect(result.action).toBe('accept');
+
+			// The old transaction should NOT be marked as replaced
+			const oldTx = await storage.getTransaction(existingDecoded.hash as Hash);
+			expect(oldTx?.status).toBe('pending');
+		});
+
+		it('uses configurable bump percentage', async () => {
+			// First, add an existing transaction
+			const existingRawTx = await createSignedTransaction({
+				to: TEST_RECIPIENT as Address,
+				value: parseEther('1'),
+				nonce: 0,
+				gasPrice: parseGwei('10'),
+				chainId,
+			});
+
+			const existingDecoded = await decodeRawTransaction(existingRawTx);
+
+			// Store the existing transaction
+			await storage.addTransaction({
+				hash: existingDecoded.hash,
+				rawTx: existingRawTx,
+				from: existingDecoded.from,
+				to: existingDecoded.to,
+				nonce: existingDecoded.nonce,
+				gasPrice: existingDecoded.gasPrice,
+				gasLimit: existingDecoded.gasLimit,
+				value: existingDecoded.value,
+				data: existingDecoded.data,
+				chainId: existingDecoded.chainId,
+				txType: existingDecoded.txType,
+			});
+
+			// Create replacement with 15% higher gas
+			const replacementRawTx = await createSignedTransaction({
+				to: TEST_RECIPIENT as Address,
+				value: parseEther('1'),
+				nonce: 0,
+				gasPrice: parseGwei('11.5'), // 15% higher
+				chainId,
+			});
+
+			const replacementDecoded = await decodeRawTransaction(replacementRawTx);
+
+			// With 20% required bump, 15% should be rejected
+			const context20: FilterContext = {
+				storage,
+				minGasPrice: 0n,
+				replacementEnabled: true,
+				minReplacementBump: 20,
+			};
+
+			const result20 = await applyFilters(replacementDecoded, context20);
+			expect(result20.accepted).toBe(false);
+			expect(result20.reason).toContain('Replacement requires 20% gas bump');
+
+			// With 10% required bump, 15% should be accepted
+			const context10: FilterContext = {
+				storage,
+				minGasPrice: 0n,
+				replacementEnabled: true,
+				minReplacementBump: 10,
+			};
+
+			const result10 = await applyFilters(replacementDecoded, context10);
+			expect(result10.accepted).toBe(true);
 		});
 	});
 

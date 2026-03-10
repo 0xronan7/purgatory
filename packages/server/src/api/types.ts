@@ -28,6 +28,8 @@ export interface TransactionInfo {
 export interface MempoolStateInfo {
 	minGasPrice: string; // Hex string
 	autoForward: boolean;
+	replacementEnabled: boolean;
+	minReplacementBump: number;
 }
 
 // Mempool statistics

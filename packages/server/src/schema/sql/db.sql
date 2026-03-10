@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS MempoolState (
 
 -- Initialize default state
 INSERT OR IGNORE INTO MempoolState (key, value, updated_at) VALUES 
-    ('paused', 'false', 0),
     ('min_gas_price', '0', 0),
-    ('auto_forward', 'true', 0);
+    ('auto_forward', 'true', 0),
+    ('replacement_enabled', 'false', 0),
+    ('min_replacement_bump', '10', 0);

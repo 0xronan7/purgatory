@@ -497,5 +497,139 @@ describe('MempoolStorage', () => {
 			await storage.setAutoForward(true);
 			expect(await storage.isAutoForward()).toBe(true);
 		});
+
+		it('gets and sets replacement enabled flag', async () => {
+			// Default is false (debug mode)
+			expect(await storage.isReplacementEnabled()).toBe(false);
+
+			await storage.setReplacementEnabled(true);
+			expect(await storage.isReplacementEnabled()).toBe(true);
+
+			await storage.setReplacementEnabled(false);
+			expect(await storage.isReplacementEnabled()).toBe(false);
+		});
+
+		it('gets and sets min replacement bump', async () => {
+			// Default is 10
+			expect(await storage.getMinReplacementBump()).toBe(10);
+
+			await storage.setMinReplacementBump(20);
+			expect(await storage.getMinReplacementBump()).toBe(20);
+
+			await storage.setMinReplacementBump(5);
+			expect(await storage.getMinReplacementBump()).toBe(5);
+		});
+	});
+
+	describe('getNonceConflicts', () => {
+		it('returns empty map when no conflicts', async () => {
+			const baseTx = {
+				from: '0x70997970c51812dc3a010c7d01b50e0d17dc79c8' as Address,
+				to: '0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc' as Address,
+				gasPrice: parseGwei('10'),
+				gasLimit: 21000n,
+				value: 1000000000000000000n,
+				data: null,
+				chainId: 31337,
+				txType: 'legacy' as const,
+			};
+
+			// Add transactions with different nonces - no conflicts
+			await storage.addTransaction({
+				...baseTx,
+				hash: '0x1111111111111111111111111111111111111111111111111111111111111111' as Hash,
+				rawTx: '0xf86c01...' as Hex,
+				nonce: 0,
+			});
+
+			await storage.addTransaction({
+				...baseTx,
+				hash: '0x2222222222222222222222222222222222222222222222222222222222222222' as Hash,
+				rawTx: '0xf86c02...' as Hex,
+				nonce: 1,
+			});
+
+			const conflicts = await storage.getNonceConflicts();
+			expect(conflicts.size).toBe(0);
+		});
+
+		it('detects nonce conflicts for same sender', async () => {
+			const from = '0x70997970c51812dc3a010c7d01b50e0d17dc79c8' as Address;
+			const baseTx = {
+				from,
+				to: '0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc' as Address,
+				gasPrice: parseGwei('10'),
+				gasLimit: 21000n,
+				value: 1000000000000000000n,
+				data: null,
+				chainId: 31337,
+				txType: 'legacy' as const,
+			};
+
+			// Add two transactions with same nonce
+			await storage.addTransaction({
+				...baseTx,
+				hash: '0x1111111111111111111111111111111111111111111111111111111111111111' as Hash,
+				rawTx: '0xf86c01...' as Hex,
+				nonce: 0,
+			});
+
+			await storage.addTransaction({
+				...baseTx,
+				hash: '0x2222222222222222222222222222222222222222222222222222222222222222' as Hash,
+				rawTx: '0xf86c02...' as Hex,
+				nonce: 0, // Same nonce - conflict!
+			});
+
+			const conflicts = await storage.getNonceConflicts();
+			expect(conflicts.size).toBe(1);
+			
+			const key = `${from.toLowerCase()}:0`;
+			expect(conflicts.has(key)).toBe(true);
+			
+			const hashes = conflicts.get(key)!;
+			expect(hashes.length).toBe(2);
+			expect(hashes).toContain('0x1111111111111111111111111111111111111111111111111111111111111111');
+			expect(hashes).toContain('0x2222222222222222222222222222222222222222222222222222222222222222');
+		});
+
+		it('only includes pending transactions in conflicts', async () => {
+			const from = '0x70997970c51812dc3a010c7d01b50e0d17dc79c8' as Address;
+			const baseTx = {
+				from,
+				to: '0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc' as Address,
+				gasPrice: parseGwei('10'),
+				gasLimit: 21000n,
+				value: 1000000000000000000n,
+				data: null,
+				chainId: 31337,
+				txType: 'legacy' as const,
+			};
+
+			// Add two transactions with same nonce
+			await storage.addTransaction({
+				...baseTx,
+				hash: '0x1111111111111111111111111111111111111111111111111111111111111111' as Hash,
+				rawTx: '0xf86c01...' as Hex,
+				nonce: 0,
+			});
+
+			await storage.addTransaction({
+				...baseTx,
+				hash: '0x2222222222222222222222222222222222222222222222222222222222222222' as Hash,
+				rawTx: '0xf86c02...' as Hex,
+				nonce: 0,
+			});
+
+			// Mark one as forwarded
+			await storage.updateStatus(
+				'0x1111111111111111111111111111111111111111111111111111111111111111' as Hash,
+				'forwarded'
+			);
+
+			// Should not be a conflict anymore since only one is pending
+			const conflicts = await storage.getNonceConflicts();
+			expect(conflicts.size).toBe(0);
+		});
 	});
 });

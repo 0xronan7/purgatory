@@ -9,12 +9,15 @@ export interface DashboardProps {
 	state: {
 		minGasPrice: bigint;
 		autoForward: boolean;
+		replacementEnabled: boolean;
+		minReplacementBump: number;
 	};
 	stats: MempoolStats;
 	pending: PendingTransaction[];
+	conflicts?: Map<string, string[]>;
 }
 
-export function dashboard({state, stats, pending}: DashboardProps) {
+export function dashboard({state, stats, pending, conflicts}: DashboardProps) {
 	const content = html`
 		${!state.autoForward
 			? html`<div class="paused-banner">
@@ -56,7 +59,7 @@ export function dashboard({state, stats, pending}: DashboardProps) {
 					hx-trigger="every 2s"
 					hx-indicator=".htmx-indicator"
 				>
-					${raw(transactionList(pending))}
+					${raw(transactionList(pending, conflicts))}
 				</div>
 			</div>
 		</div>

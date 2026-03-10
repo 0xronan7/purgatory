@@ -2,7 +2,10 @@ import {html} from 'hono/html';
 import {PendingTransaction} from '../../mempool/types.js';
 import {formatGasPrice, formatEthValue, formatTimeAgo} from '../utils.js';
 
-export function transactionList(transactions: PendingTransaction[]) {
+export function transactionList(
+	transactions: PendingTransaction[],
+	conflicts?: Map<string, string[]>
+) {
 	if (transactions.length === 0) {
 		return html`
 			<div class="empty-state">
@@ -13,6 +16,12 @@ export function transactionList(transactions: PendingTransaction[]) {
 
 	const truncateHash = (hash: string) =>
 		`${hash.slice(0, 10)}...${hash.slice(-8)}`;
+
+	// Build conflict lookup
+	const hasConflict = (tx: PendingTransaction) => {
+		const key = `${tx.from.toLowerCase()}:${tx.nonce}`;
+		return conflicts?.has(key) ?? false;
+	};
 
 	return html`
 		<table>
@@ -31,7 +40,7 @@ export function transactionList(transactions: PendingTransaction[]) {
 			<tbody>
 				${transactions.map(
 					(tx) => html`
-						<tr>
+						<tr class="${hasConflict(tx) ? 'nonce-conflict' : ''}">
 							<td class="hash truncate" title="${tx.hash}">
 								${truncateHash(tx.hash)}
 							</td>
@@ -43,7 +52,12 @@ export function transactionList(transactions: PendingTransaction[]) {
 							</td>
 							<td>${formatEthValue(tx.value)}</td>
 							<td>${formatGasPrice(tx.maxFeePerGas ?? tx.gasPrice ?? 0n)}</td>
-							<td>${tx.nonce}</td>
+							<td>
+								${tx.nonce}
+								${hasConflict(tx)
+									? html`<span class="conflict-badge" title="Multiple TXs with same nonce">⚠️</span>`
+									: ''}
+							</td>
 							<td>${formatTimeAgo(tx.createdAt)}</td>
 							<td class="actions">
 								<button

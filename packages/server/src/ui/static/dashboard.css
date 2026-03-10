@@ -209,3 +209,18 @@ th {
 .htmx-request .htmx-indicator {
 	opacity: 1;
 }
+
+/* Nonce conflict highlighting */
+tr.nonce-conflict {
+	background-color: rgba(255, 193, 7, 0.15);
+	border-left: 3px solid #ffc107;
+}
+
+tr.nonce-conflict:hover {
+	background-color: rgba(255, 193, 7, 0.25);
+}
+
+.conflict-badge {
+	margin-left: 0.5rem;
+	cursor: help;
+}

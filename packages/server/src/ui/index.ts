@@ -53,12 +53,15 @@ export function getUIRoutes<CustomEnv extends Env>(
 				const state = {
 					minGasPrice: await storage.getMinGasPrice(),
 					autoForward: await storage.isAutoForward(),
+					replacementEnabled: await storage.isReplacementEnabled(),
+					minReplacementBump: await storage.getMinReplacementBump(),
 				};
 
 				const stats = await storage.getStats();
 				const pending = await storage.getPendingTransactions({limit: 50});
+				const conflicts = await storage.getNonceConflicts();
 
-				return c.html(dashboard({state, stats, pending}));
+				return c.html(dashboard({state, stats, pending, conflicts}));
 			} catch (error) {
 				console.error('Dashboard error:', error);
 				return c.html(errorPage('Failed to load dashboard. Please try again.'), 500);
@@ -70,7 +73,8 @@ export function getUIRoutes<CustomEnv extends Env>(
 			try {
 				const config = c.get('config');
 				const pending = await config.storage.getPendingTransactions({limit: 50});
-				return c.html(transactionList(pending));
+				const conflicts = await config.storage.getNonceConflicts();
+				return c.html(transactionList(pending, conflicts));
 			} catch (error) {
 				console.error('Transaction list error:', error);
 				return c.html(html`<div class="empty-state"><p>Failed to load transactions</p></div>`, 500);
@@ -84,6 +88,8 @@ export function getUIRoutes<CustomEnv extends Env>(
 				const state = {
 					minGasPrice: await config.storage.getMinGasPrice(),
 					autoForward: await config.storage.isAutoForward(),
+					replacementEnabled: await config.storage.isReplacementEnabled(),
+					minReplacementBump: await config.storage.getMinReplacementBump(),
 				};
 				return c.html(stateControls(state));
 			} catch (error) {
