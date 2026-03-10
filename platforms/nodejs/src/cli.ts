@@ -31,7 +31,8 @@ async function main() {
     .usage(`purgatory-nodejs [--port 2000] [--rpc-url <url>]`)
     .description("run purgatory-nodejs as a node process")
     .option("-p, --port <port>", "port to listen on", "2000")
-    .option("-r, --rpc-url <url>", "RPC URL for the Ethereum node to proxy to");
+    .option("--rpc-url <url>", "RPC URL for the Ethereum node to proxy to")
+    .option("--reset-db", "whether to reset the db");
 
   program.parse(process.argv);
 
@@ -62,8 +63,15 @@ async function main() {
   });
 
   if (db === ":memory:") {
+    // TODO
     // console.log(`executing setup...`);
-    // can fetch an admin route with the token if needed
+    // await app.fetch(
+    //   new Request("http://localhost/admin/setup", {
+    //     // headers: {
+    //     //   Authorization: `Basic ${btoa(`admin:${TOKEN_ADMIN}`)}`,
+    //     // },
+    //   }),
+    // );
   }
 
   serve({

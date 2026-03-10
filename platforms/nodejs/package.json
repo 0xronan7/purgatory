@@ -31,7 +31,7 @@
   },
   "scripts": {
     "prepare": "set-defaults .env.default",
-    "dev": "tsx watch src/cli.ts --port 30042",
+    "dev": "tsx watch src/cli.ts --port 8545",
     "build": "tsc",
     "build:watch": "as-soon -w src tsc"
   }

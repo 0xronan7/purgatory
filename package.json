@@ -22,6 +22,7 @@
     "build": "ldenv pnpm run -r build",
     "deploy:cf": "pnpm run --filter purgatory-server-cf-worker deploy",
     "---------------------- RUN FULL LOCAL SETUP ----------------------": "",
+    "start:nodejs": "cross-var zellij-launcher a $npm_package_name || cross-var ldenv -d localhost zellij -n zellij-nodejs.kdl -s $npm_package_name",
     "stop": "cross-var zellij kill-session $npm_package_name",
     "start": "cross-var zellij-launcher a $npm_package_name || cross-var ldenv -d localhost zellij -n zellij.kdl -s $npm_package_name"
   }
