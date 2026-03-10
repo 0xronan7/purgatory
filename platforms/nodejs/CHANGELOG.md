@@ -1,5 +1,13 @@
 # purgatory
 
+## 0.0.3
+
+### Patch Changes
+
+- new style
+- Updated dependencies
+  - purgatory-core@0.0.2
+
 ## 0.0.2
 
 ### Patch Changes
