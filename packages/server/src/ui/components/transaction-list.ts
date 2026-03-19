@@ -76,10 +76,9 @@ export function transactionList(
 								<button
 									class="btn btn-warning"
 									style="padding: 0.25rem 0.5rem; font-size: 0.75rem;"
-									hx-post="/api/admin/tx/hide"
-									hx-vals='{"hash":"${tx.hash}"}'
-									hx-target="#transaction-list"
-									hx-swap="outerHTML"
+									hx-post="/api/mempool/hide/${tx.hash}"
+									hx-swap="none"
+									hx-trigger="click"
 									hx-confirm="Hide this transaction?"
 									title="Hide Transaction"
 								>

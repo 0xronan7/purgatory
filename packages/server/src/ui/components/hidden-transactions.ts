@@ -49,10 +49,9 @@ export function hiddenTransactionsList(transactions: PendingTransaction[]) {
 								<button
 									class="btn btn-success"
 									style="padding: 0.25rem 0.5rem; font-size: 0.75rem;"
-									hx-post="/api/admin/tx/restore"
-									hx-vals='{"hash":"${tx.hash}"}'
-									hx-target="#hidden-transactions-list"
-									hx-swap="outerHTML"
+									hx-post="/api/mempool/restore/${tx.hash}"
+									hx-swap="none"
+									hx-trigger="click"
 									title="Restore Transaction"
 								>
 									↻ Restore
