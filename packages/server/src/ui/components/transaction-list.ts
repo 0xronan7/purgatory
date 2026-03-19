@@ -23,6 +23,8 @@ export function transactionList(
 		return conflicts?.has(key) ?? false;
 	};
 
+	const isHidden = (tx: PendingTransaction) => tx.deletedAt != null;
+
 	return html`
 		<table>
 			<thead>
@@ -40,9 +42,12 @@ export function transactionList(
 			<tbody>
 				${transactions.map(
 					(tx) => html`
-						<tr class="${hasConflict(tx) ? 'nonce-conflict' : ''}">
+						<tr class="${isHidden(tx) ? 'tx-hidden' : ''} ${hasConflict(tx) ? 'nonce-conflict' : ''}">
 							<td class="hash truncate" title="${tx.hash}">
 								${truncateHash(tx.hash)}
+								${isHidden(tx)
+									? html`<span class="conflict-badge" title="Hidden">👁️</span>`
+									: ''}
 							</td>
 							<td class="hash truncate" title="${tx.from}">
 								${truncateHash(tx.from)}
@@ -74,16 +79,15 @@ export function transactionList(
 									✓
 								</button>
 								<button
-									class="btn btn-warning"
+									class="btn ${isHidden(tx) ? 'btn-info' : 'btn-warning'}"
 									style="padding: 0.25rem 0.5rem; font-size: 0.75rem;"
-									hx-post="/ui/actions/hide/${tx.hash}"
+									hx-post="/ui/actions/${isHidden(tx) ? 'restore' : 'hide'}/${tx.hash}"
 									hx-target="#transaction-list"
 									hx-swap="outerHTML"
 									hx-trigger="click"
-									hx-confirm="Hide this transaction?"
-									title="Hide Transaction"
+									title="${isHidden(tx) ? 'Restore' : 'Hide'} Transaction"
 								>
-									👁️
+									${isHidden(tx) ? '↺' : '👁️'}
 								</button>
 								<button
 									class="btn btn-danger"

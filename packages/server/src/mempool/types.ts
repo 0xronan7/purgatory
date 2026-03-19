@@ -82,6 +82,7 @@ export interface TransactionFilter {
 	maxGasPrice?: bigint;
 	limit?: number;
 	offset?: number;
+	includeHidden?: boolean; // Include hidden (deleted_at IS NOT NULL) transactions
 }
 
 // Helper to get effective gas price for comparison

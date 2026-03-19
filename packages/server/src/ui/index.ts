@@ -7,7 +7,6 @@ import {dashboard} from './pages/dashboard.js';
 import {transactionList} from './components/transaction-list.js';
 import {stateControls} from './components/state-controls.js';
 import {statsCard} from './components/stats-card.js';
-import {hiddenTransactionsList} from './components/hidden-transactions.js';
 import {layout} from './layout.js';
 import htmxScript from './static/htmx.min.js.js';
 
@@ -63,7 +62,7 @@ export function getUIRoutes<CustomEnv extends Env>(
 				const hidden = await storage.getHiddenTransactions();
 				const conflicts = await storage.getNonceConflicts();
 
-				return c.html(dashboard({state, stats, pending, hidden, conflicts}));
+				return c.html(dashboard({state, stats, pending, hiddenCount: hidden.length, conflicts}));
 			} catch (error) {
 				console.error('Dashboard error:', error);
 				return c.html(
@@ -73,15 +72,17 @@ export function getUIRoutes<CustomEnv extends Env>(
 			}
 		})
 
-		// HTMX partial: Transaction list
+		// HTMX partial: Transaction list (includes hidden)
 		.get('/partials/transactions', async (c) => {
 			try {
 				const config = c.get('config');
-				const pending = await config.storage.getPendingTransactions({
+				// Get ALL transactions including hidden
+				const all = await config.storage.getPendingTransactions({
 					limit: 50,
+					includeHidden: true,
 				});
 				const conflicts = await config.storage.getNonceConflicts();
-				return c.html(transactionList(pending, conflicts));
+				return c.html(transactionList(all, conflicts));
 			} catch (error) {
 				console.error('Transaction list error:', error);
 				return c.html(
@@ -129,21 +130,6 @@ export function getUIRoutes<CustomEnv extends Env>(
 			}
 		})
 
-		// HTMX partial: Hidden transactions
-		.get('/partials/hidden', async (c) => {
-			try {
-				const config = c.get('config');
-				const hidden = await config.storage.getHiddenTransactions();
-				return c.html(hiddenTransactionsList(hidden));
-			} catch (error) {
-				console.error('Hidden transactions error:', error);
-				return c.html(
-					html`<div class="empty-state"><p>Failed to load hidden transactions</p></div>`,
-					500,
-				);
-			}
-		})
-
 		// HTMX action: Hide transaction
 		.post('/actions/hide/:hash', async (c) => {
 			try {
@@ -163,12 +149,13 @@ export function getUIRoutes<CustomEnv extends Env>(
 					throw new Error(result.error ?? 'Failed to hide transaction');
 				}
 
-				// Return updated transaction list
-				const pending = await config.storage.getPendingTransactions({
+				// Return updated transaction list (includes hidden)
+				const all = await config.storage.getPendingTransactions({
 					limit: 50,
+					includeHidden: true,
 				});
 				const conflicts = await config.storage.getNonceConflicts();
-				return c.html(transactionList(pending, conflicts));
+				return c.html(transactionList(all, conflicts));
 			} catch (error) {
 				console.error('Hide transaction error:', error);
 				return c.html(
@@ -199,9 +186,13 @@ export function getUIRoutes<CustomEnv extends Env>(
 					throw new Error(result.error ?? 'Failed to restore transaction');
 				}
 
-				// Return updated hidden transactions list
-				const hidden = await config.storage.getHiddenTransactions();
-				return c.html(hiddenTransactionsList(hidden));
+				// Return updated transaction list (includes hidden)
+				const all = await config.storage.getPendingTransactions({
+					limit: 50,
+					includeHidden: true,
+				});
+				const conflicts = await config.storage.getNonceConflicts();
+				return c.html(transactionList(all, conflicts));
 			} catch (error) {
 				console.error('Restore transaction error:', error);
 				return c.html(

@@ -105,6 +105,11 @@ export class MempoolStorage {
 			query += " AND status = 'pending'";
 		}
 
+		// Filter hidden transactions by default (unless includeHidden is true)
+		if (filter?.includeHidden !== true) {
+			query += ' AND deleted_at IS NULL';
+		}
+
 		if (filter?.from) {
 			query += ' AND from_address = ?';
 			params.push(filter.from.toLowerCase());

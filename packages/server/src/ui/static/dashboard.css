@@ -407,18 +407,29 @@ tr.nonce-conflict:hover {
 }
 
 /* Hidden transaction styling */
-tr.hidden-tx {
+tr.tx-hidden {
 	background: linear-gradient(90deg, rgba(160, 80, 255, 0.08) 0%, rgba(160, 80, 255, 0.04) 50%, rgba(160, 80, 255, 0.08) 100%);
 	opacity: 0.7;
 }
 
-tr.hidden-tx:hover {
+tr.tx-hidden:hover {
 	background: linear-gradient(90deg, rgba(160, 80, 255, 0.15) 0%, rgba(160, 80, 255, 0.08) 50%, rgba(160, 80, 255, 0.15) 100%);
 	opacity: 1;
 }
 
-tr.hidden-tx td {
+tr.tx-hidden td {
 	color: #b090d0;
+}
+
+.btn-info {
+	background: rgba(40, 180, 255, 0.2);
+	border-color: rgba(40, 200, 255, 0.4);
+	color: var(--accent-cyan);
+}
+
+.btn-info:hover {
+	border-color: rgba(40, 200, 255, 0.7);
+	box-shadow: 0 0 15px rgba(40, 180, 255, 0.3);
 }
 
 /* Scanlines overlay effect */

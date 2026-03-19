@@ -4,7 +4,7 @@ import {formatAge} from '../utils.js';
 
 export interface StatsCardProps {
 	stats: MempoolStats;
-	hiddenCount?: number;
+	hiddenCount: number;
 }
 
 export function statsCard({stats, hiddenCount}: StatsCardProps) {
@@ -18,7 +18,7 @@ export function statsCard({stats, hiddenCount}: StatsCardProps) {
 				<div class="stat-label">Pending</div>
 			</div>
 			<div class="stat">
-				<div class="stat-value">${hiddenCount ?? 0}</div>
+				<div class="stat-value">${hiddenCount}</div>
 				<div class="stat-label">Hidden</div>
 			</div>
 			<div class="stat">
