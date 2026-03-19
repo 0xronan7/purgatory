@@ -637,4 +637,197 @@ describe('MempoolStorage', () => {
 			expect(conflicts.size).toBe(0);
 		});
 	});
+
+	describe('hideTransaction', () => {
+		it('hides a transaction and excludes it from normal queries', async () => {
+			const tx = {
+				hash: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef' as Hash,
+				rawTx: '0xf86c...' as Hex,
+				from: '0x70997970c51812dc3a010c7d01b50e0d17dc79c8' as Address,
+				to: '0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc' as Address,
+				nonce: 0,
+				gasPrice: parseGwei('10'),
+				gasLimit: 21000n,
+				value: 1000000000000000000n,
+				data: null,
+				chainId: 31337,
+				txType: 'legacy' as const,
+			};
+
+			await storage.addTransaction(tx);
+
+			// Verify it's visible initially
+			const visible = await storage.getTransaction(tx.hash);
+			expect(visible).not.toBeNull();
+
+			// Hide the transaction
+			await storage.hideTransaction(tx.hash);
+
+			// Should not appear in normal query
+			const hidden = await storage.getTransaction(tx.hash);
+			expect(hidden).toBeNull();
+
+			// Should not appear in getTransactionsBySender
+			const bySender = await storage.getTransactionsBySender(tx.from);
+			expect(bySender.length).toBe(0);
+
+			// But should appear with includeHidden flag
+			const withHidden = await storage.getTransaction(tx.hash, true);
+			expect(withHidden).not.toBeNull();
+			expect(withHidden!.deletedAt).toBeDefined();
+		});
+
+		it('hides multiple transactions from same sender', async () => {
+			const baseTx = {
+				from: '0x70997970c51812dc3a010c7d01b50e0d17dc79c8' as Address,
+				to: '0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc' as Address,
+				gasPrice: parseGwei('10'),
+				gasLimit: 21000n,
+				value: 1000000000000000000n,
+				data: null,
+				chainId: 31337,
+				txType: 'legacy' as const,
+			};
+
+			// Add 3 transactions
+			for (let i = 0; i < 3; i++) {
+				await storage.addTransaction({
+					...baseTx,
+					hash: `0x${(i + 1).toString().padStart(64, '0')}` as Hash,
+					rawTx: `0xf86c0${i}...` as Hex,
+					nonce: i,
+				});
+			}
+
+			// Hide middle one (nonce 1)
+			await storage.hideTransaction(
+				'0x0000000000000000000000000000000000000000000000000000000000000002' as Hash,
+			);
+
+			// Should only return 2 visible transactions
+			const visible = await storage.getTransactionsBySender(
+				'0x70997970c51812dc3a010c7d01b50e0d17dc79c8' as Address,
+			);
+			expect(visible.length).toBe(2);
+			expect(visible.map((t) => t.nonce)).toEqual([0, 2]);
+		});
+	});
+
+	describe('restoreTransaction', () => {
+		it('restores a hidden transaction', async () => {
+			const tx = {
+				hash: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef' as Hash,
+				rawTx: '0xf86c...' as Hex,
+				from: '0x70997970c51812dc3a010c7d01b50e0d17dc79c8' as Address,
+				to: '0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc' as Address,
+				nonce: 0,
+				gasPrice: parseGwei('10'),
+				gasLimit: 21000n,
+				value: 1000000000000000000n,
+				data: null,
+				chainId: 31337,
+				txType: 'legacy' as const,
+			};
+
+			await storage.addTransaction(tx);
+			await storage.hideTransaction(tx.hash);
+
+			// Verify it's hidden
+			const hidden = await storage.getTransaction(tx.hash);
+			expect(hidden).toBeNull();
+
+			// Restore it
+			await storage.restoreTransaction(tx.hash);
+
+			// Should be visible again
+			const visible = await storage.getTransaction(tx.hash);
+			expect(visible).not.toBeNull();
+			expect(visible!.deletedAt).toBeUndefined();
+
+			// Should appear in sender queries
+			const bySender = await storage.getTransactionsBySender(tx.from);
+			expect(bySender.length).toBe(1);
+		});
+	});
+
+	describe('getHiddenTransactions', () => {
+		it('returns all hidden transactions', async () => {
+			const baseTx = {
+				from: '0x70997970c51812dc3a010c7d01b50e0d17dc79c8' as Address,
+				to: '0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc' as Address,
+				gasPrice: parseGwei('10'),
+				gasLimit: 21000n,
+				value: 1000000000000000000n,
+				data: null,
+				chainId: 31337,
+				txType: 'legacy' as const,
+			};
+
+			// Add 3 transactions
+			for (let i = 0; i < 3; i++) {
+				await storage.addTransaction({
+					...baseTx,
+					hash: `0x${(i + 1).toString().padStart(64, '0')}` as Hash,
+					rawTx: `0xf86c0${i}...` as Hex,
+					nonce: i,
+				});
+			}
+
+			// Hide nonce 1 and 2 (hashes 0x...002 and 0x...003)
+			await storage.hideTransaction(
+				'0x0000000000000000000000000000000000000000000000000000000000000002' as Hash,
+			);
+			await storage.hideTransaction(
+				'0x0000000000000000000000000000000000000000000000000000000000000003' as Hash,
+			);
+
+			const hidden = await storage.getHiddenTransactions();
+			expect(hidden.length).toBe(2);
+			expect(hidden.map((t) => t.nonce)).toEqual([1, 2]);
+		});
+
+		it('filters hidden transactions by sender', async () => {
+			const baseTx = {
+				to: '0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc' as Address,
+				gasPrice: parseGwei('10'),
+				gasLimit: 21000n,
+				value: 1000000000000000000n,
+				data: null,
+				chainId: 31337,
+				txType: 'legacy' as const,
+			};
+
+			// Add transactions from 2 different senders
+			await storage.addTransaction({
+				...baseTx,
+				hash: '0x1111111111111111111111111111111111111111111111111111111111111111' as Hash,
+				rawTx: '0xf86c01...' as Hex,
+				from: '0x70997970c51812dc3a010c7d01b50e0d17dc79c8' as Address,
+				nonce: 0,
+			});
+
+			await storage.addTransaction({
+				...baseTx,
+				hash: '0x2222222222222222222222222222222222222222222222222222222222222222' as Hash,
+				rawTx: '0xf86c02...' as Hex,
+				from: '0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266' as Address,
+				nonce: 0,
+			});
+
+			// Hide both
+			await storage.hideTransaction(
+				'0x1111111111111111111111111111111111111111111111111111111111111111' as Hash,
+			);
+			await storage.hideTransaction(
+				'0x2222222222222222222222222222222222222222222222222222222222222222' as Hash,
+			);
+
+			// Filter by first sender
+			const hidden = await storage.getHiddenTransactions(
+				'0x70997970c51812dc3a010c7d01b50e0d17dc79c8' as Address,
+			);
+			expect(hidden.length).toBe(1);
+			expect(hidden[0].from).toBe('0x70997970c51812dc3a010c7d01b50e0d17dc79c8');
+		});
+	});
 });

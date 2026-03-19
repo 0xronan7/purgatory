@@ -32,6 +32,7 @@ export interface PendingTransaction {
 	forwardedAt?: number;
 	droppedAt?: number;
 	dropReason?: string;
+	deletedAt?: number; // null = visible, not null = hidden
 }
 
 // Database row representation
@@ -54,6 +55,7 @@ export interface PendingTransactionRow {
 	forwarded_at: number | null;
 	dropped_at: number | null;
 	drop_reason: string | null;
+	deleted_at: number | null;
 }
 
 // Mempool state keys

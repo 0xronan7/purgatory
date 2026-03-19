@@ -17,7 +17,8 @@ CREATE TABLE IF NOT EXISTS PendingTransactions (
     created_at INTEGER NOT NULL,            -- Unix timestamp when received
     forwarded_at INTEGER,                   -- Unix timestamp when forwarded to node
     dropped_at INTEGER,                     -- Unix timestamp when dropped
-    drop_reason TEXT                        -- Reason for dropping (if applicable)
+    drop_reason TEXT,                       -- Reason for dropping (if applicable)
+    deleted_at INTEGER                      -- Unix timestamp when hidden (null = visible, not null = hidden)
 );
 
 -- Index for common queries

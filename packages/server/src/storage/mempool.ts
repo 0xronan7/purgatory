@@ -41,6 +41,7 @@ export class MempoolStorage {
 			forwardedAt: row.forwarded_at ?? undefined,
 			droppedAt: row.dropped_at ?? undefined,
 			dropReason: row.drop_reason ?? undefined,
+			deletedAt: row.deleted_at ?? undefined,
 		};
 	}
 
@@ -73,17 +74,6 @@ export class MempoolStorage {
 				Math.floor(Date.now() / 1000),
 			)
 			.all();
-	}
-
-	// Get transaction by hash
-	async getTransaction(hash: Hash): Promise<PendingTransaction | null> {
-		const stmt = this.db.prepare(
-			'SELECT * FROM PendingTransactions WHERE hash = ?',
-		);
-		const result = await stmt.bind(hash).all<PendingTransactionRow>();
-		return result.results.length > 0
-			? this.rowToTransaction(result.results[0])
-			: null;
 	}
 
 	// Get all pending transactions (defaults to pending status)
@@ -153,17 +143,70 @@ export class MempoolStorage {
 		return result.results.map((row) => this.rowToTransaction(row));
 	}
 
-	// Get transactions by sender address
+	// Get transactions by sender address (excludes hidden transactions)
 	async getTransactionsBySender(
 		address: Address,
 	): Promise<PendingTransaction[]> {
 		const stmt = this.db.prepare(
-			"SELECT * FROM PendingTransactions WHERE from_address = ? AND status = 'pending' ORDER BY nonce ASC",
+			"SELECT * FROM PendingTransactions WHERE from_address = ? AND status = 'pending' AND deleted_at IS NULL ORDER BY nonce ASC",
 		);
 		const result = await stmt
 			.bind(address.toLowerCase())
 			.all<PendingTransactionRow>();
 		return result.results.map((row) => this.rowToTransaction(row));
+	}
+
+	// Hide a transaction (soft delete - keeps in DB but marks as hidden)
+	async hideTransaction(hash: Hash): Promise<void> {
+		const now = Math.floor(Date.now() / 1000);
+		const stmt = this.db.prepare(
+			'UPDATE PendingTransactions SET deleted_at = ? WHERE hash = ?',
+		);
+		await stmt.bind(now, hash).all();
+	}
+
+	// Restore a hidden transaction
+	async restoreTransaction(hash: Hash): Promise<void> {
+		const stmt = this.db.prepare(
+			'UPDATE PendingTransactions SET deleted_at = NULL WHERE hash = ?',
+		);
+		await stmt.bind(hash).all();
+	}
+
+	// Get hidden transactions (optionally filter by sender)
+	async getHiddenTransactions(
+		address?: Address,
+	): Promise<PendingTransaction[]> {
+		let query =
+			'SELECT * FROM PendingTransactions WHERE deleted_at IS NOT NULL';
+		const params: unknown[] = [];
+
+		if (address) {
+			query += ' AND from_address = ?';
+			params.push(address.toLowerCase());
+		}
+
+		query += ' ORDER BY deleted_at DESC';
+
+		const stmt = this.db.prepare(query);
+		const result = await stmt.bind(...params).all<PendingTransactionRow>();
+		return result.results.map((row) => this.rowToTransaction(row));
+	}
+
+	// Get transaction by hash (excludes hidden by default)
+	async getTransaction(
+		hash: Hash,
+		includeHidden: boolean = false,
+	): Promise<PendingTransaction | null> {
+		let query = 'SELECT * FROM PendingTransactions WHERE hash = ?';
+		if (!includeHidden) {
+			query += ' AND deleted_at IS NULL';
+		}
+		const stmt = this.db.prepare(query);
+		const result = await stmt.bind(hash).all<PendingTransactionRow>();
+		return result.results.length > 0
+			? this.rowToTransaction(result.results[0])
+			: null;
 	}
 
 	// Update transaction status

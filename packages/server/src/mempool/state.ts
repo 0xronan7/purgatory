@@ -162,9 +162,9 @@ export class MempoolManager {
 		return {success: true};
 	}
 
-	// Drop a pending transaction
+	// Drop a pending transaction (marks as dropped, still visible in history)
 	async dropTransaction(hash: Hash, reason?: string): Promise<boolean> {
-		const tx = await this.storage.getTransaction(hash);
+		const tx = await this.storage.getTransaction(hash, true); // include hidden
 		if (!tx || tx.status !== 'pending') {
 			return false;
 		}
@@ -175,6 +175,36 @@ export class MempoolManager {
 			reason ?? 'Manually dropped',
 		);
 		return true;
+	}
+
+	// Hide a pending transaction (soft delete - can be restored later)
+	async hideTransaction(hash: Hash): Promise<{success: boolean; error?: string}> {
+		const tx = await this.storage.getTransaction(hash, true); // include hidden
+		if (!tx) {
+			return {success: false, error: `Transaction ${hash} not found`};
+		}
+
+		if (tx.deletedAt) {
+			return {success: false, error: `Transaction already hidden`};
+		}
+
+		await this.storage.hideTransaction(hash);
+		return {success: true};
+	}
+
+	// Restore a hidden transaction
+	async restoreTransaction(hash: Hash): Promise<{success: boolean; error?: string}> {
+		const tx = await this.storage.getTransaction(hash, true); // include hidden
+		if (!tx) {
+			return {success: false, error: `Transaction ${hash} not found`};
+		}
+
+		if (!tx.deletedAt) {
+			return {success: false, error: `Transaction is not hidden`};
+		}
+
+		await this.storage.restoreTransaction(hash);
+		return {success: true};
 	}
 
 	// Forward all pending transactions
