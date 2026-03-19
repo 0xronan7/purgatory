@@ -142,6 +142,110 @@ export function getUIRoutes<CustomEnv extends Env>(
 					500,
 				);
 			}
+		})
+
+		// HTMX action: Hide transaction
+		.post('/actions/hide/:hash', async (c) => {
+			try {
+				const hash = c.req.param('hash') as `0x${string}`;
+				const config = c.get('config');
+				const targetUrl = config.env.RPC_URL;
+
+				if (!targetUrl) {
+					throw new Error('RPC_URL not configured');
+				}
+
+				const {MempoolManager} = await import('../mempool/state.js');
+				const mempool = new MempoolManager(config.storage, targetUrl);
+				const result = await mempool.hideTransaction(hash);
+
+				if (!result.success) {
+					throw new Error(result.error ?? 'Failed to hide transaction');
+				}
+
+				// Return updated transaction list
+				const pending = await config.storage.getPendingTransactions({
+					limit: 50,
+				});
+				const conflicts = await config.storage.getNonceConflicts();
+				return c.html(transactionList(pending, conflicts));
+			} catch (error) {
+				console.error('Hide transaction error:', error);
+				return c.html(
+					html`<div class="empty-state">
+						<p>Failed to hide transaction</p>
+					</div>`,
+					500,
+				);
+			}
+		})
+
+		// HTMX action: Restore transaction
+		.post('/actions/restore/:hash', async (c) => {
+			try {
+				const hash = c.req.param('hash') as `0x${string}`;
+				const config = c.get('config');
+				const targetUrl = config.env.RPC_URL;
+
+				if (!targetUrl) {
+					throw new Error('RPC_URL not configured');
+				}
+
+				const {MempoolManager} = await import('../mempool/state.js');
+				const mempool = new MempoolManager(config.storage, targetUrl);
+				const result = await mempool.restoreTransaction(hash);
+
+				if (!result.success) {
+					throw new Error(result.error ?? 'Failed to restore transaction');
+				}
+
+				// Return updated hidden transactions list
+				const hidden = await config.storage.getHiddenTransactions();
+				return c.html(hiddenTransactionsList(hidden));
+			} catch (error) {
+				console.error('Restore transaction error:', error);
+				return c.html(
+					html`<div class="empty-state">
+						<p>Failed to restore transaction</p>
+					</div>`,
+					500,
+				);
+			}
+		})
+
+		// HTMX action: Drop transaction
+		.post('/actions/drop/:hash', async (c) => {
+			try {
+				const hash = c.req.param('hash') as `0x${string}`;
+				const config = c.get('config');
+
+				// Check if transaction exists and is pending
+				const tx = await config.storage.getTransaction(hash);
+				if (!tx) {
+					throw new Error('Transaction not found');
+				}
+
+				if (tx.status !== 'pending') {
+					throw new Error(`Transaction is ${tx.status}, not pending`);
+				}
+
+				await config.storage.updateStatus(hash, 'dropped', 'Manually dropped');
+
+				// Return updated transaction list
+				const pending = await config.storage.getPendingTransactions({
+					limit: 50,
+				});
+				const conflicts = await config.storage.getNonceConflicts();
+				return c.html(transactionList(pending, conflicts));
+			} catch (error) {
+				console.error('Drop transaction error:', error);
+				return c.html(
+					html`<div class="empty-state">
+						<p>Failed to drop transaction</p>
+					</div>`,
+					500,
+				);
+			}
 		});
 
 	return app;
